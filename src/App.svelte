@@ -108,7 +108,29 @@
         }
     }
 
-    
+    // $: exportTasks = btoa(JSON.stringify(todolist));
+    function exportTodolist(todolist) {
+        if(todolist.length <= 0) {
+            return '';
+        }
+        return btoa(JSON.stringify(todolist));
+    }
+
+    let importError = false;
+
+    function importTodolist() {
+        importError = false;
+
+        if(this.value) {
+            try {
+                const newTodolist = JSON.parse(atob(this.value));
+                todolist = newTodolist;
+                updateTodolist();
+            } catch(err) {
+                importError = true;
+            }
+        }        
+    }
 </script>
 
 <main>
@@ -116,12 +138,18 @@
 
         <h1 class="text-3xl font-bold mb-6 flex gap-4 justify-between items-center">
             Guild Wars 2 - Liste de tâches
-            <label for="add-task" class="btn gap-1 btn-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
-                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                </svg>                  
-                Ajouter
-            </label>
+            <div class="flex gap-2">
+                <label for="add-task" class="btn gap-1 btn-sm btn-square">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+                        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                    </svg>
+                </label>
+                <label for="export-task" class="btn btn-sm btn-square btn-outline">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                        <path fill-rule="evenodd" d="M2.24 6.8a.75.75 0 001.06-.04l1.95-2.1v8.59a.75.75 0 001.5 0V4.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0L2.2 5.74a.75.75 0 00.04 1.06zm8 6.4a.75.75 0 00-.04 1.06l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75a.75.75 0 00-1.5 0v8.59l-1.95-2.1a.75.75 0 00-1.06-.04z" clip-rule="evenodd" />
+                    </svg>                  
+                </label>
+            </div>
         </h1>
 
         {#if todolist.length > 0}
@@ -204,6 +232,29 @@
                     <button type="reset" class="btn btn-ghost" on:click={resetAddTask}>Annuler</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <input type="checkbox" id="export-task" class="modal-toggle" />
+    <div class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Exporter/importer</h3>
+            {#if importError}
+                <div class="alert alert-warning shadow-lg mt-4 mb-2">
+                    <div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <span>Données invalides...</span>
+                    </div>
+                </div>
+            {/if}
+            <div class="form-control w-full">
+                <label for="tasks" class="label label-text">Liste des tâches</label>
+                <textarea name="tasks" id="tasks" class="textarea textarea-bordered" rows="5" value={exportTodolist(todolist)} on:input={importTodolist}></textarea>
+            </div>
+            <div class="flex gap-4 justify-between mt-4">
+                <button class="btn" use:copy={exportTodolist(todolist)}>Copier</button>
+                <label for="export-task" class="btn btn-ghost">Fermer</label>
+            </div>
         </div>
     </div>
 </main>
