@@ -1,95 +1,211 @@
 <script>
-    const todolist = [
-        {
-            "id": "azerty",
-            "name": "Nom de la tâche",
-            "wp": "[&AZER3]",
-            "time": "11:00",
-            "moment": "day"
-        },
-        {
-            "id": "azerty2",
-            "name": "Nom de la tâche 2",
-            "wp": "[&AZER1]",
-            "time": "11:45",
-            "moment": "night"
-        },
-        {
-            "id": "azerty3",
-            "name": "Nom de la tâche 3",
-            "wp": "[&AZER969]",
-            "time": "23:57",
-            "moment": null
-        },
-    ];
+    import { onMount } from 'svelte';
 
-    const local = {
-        "date": "2022-11-17",
-        "tasks": [
-            'azerty'
-        ]
+    // @ts-ignore
+    import { v4 as uuidv4 } from 'uuid';
+    import { copy } from 'svelte-copy';
+    import moment from 'moment'
+
+    import SunIcon from './assets/sun.svg';
+    import MoonIcon from './assets/moon.svg';
+
+    let todolist = [];
+    let _my = {
+        "date": moment.utc().format('YYYY-MM-DD'),
+        "tasks": []
     };
 
-    function updateTask() {
+    let my;
 
+    onMount(()=> {
+        if(localStorage.getItem('todolist')) {
+            todolist = JSON.parse(atob(localStorage.getItem('todolist')));
+        }
+
+        if(localStorage.getItem('my')) {
+            my = JSON.parse(localStorage.getItem('my'));
+        } else {
+            my = _my;
+        }
+
+        if(my.date !== moment.utc().format('YYYY-MM-DD')) {
+            my = _my;
+        }
+        updateMy();
+    });
+
+    function updateTodolist() {
+        localStorage.setItem('todolist', btoa(JSON.stringify(todolist)));
     }
+
+    function updateMy() {
+        localStorage.setItem('my', JSON.stringify(my));
+    }
+
+    function updateMyTasks() {
+        const id = this.dataset.taskId;
+        const i = my.tasks.indexOf(id);
+        if(this.checked && i < 0) {
+            my.tasks = [...my.tasks, id];
+        } else if(!this.checked && i >= 0) {
+            my.tasks = [...my.tasks.slice(0, i), ...my.tasks.slice(i + 1)];
+        }
+
+        updateMy();
+    }
+
+    let addTaskOpened = false;
+
+    function addTask(e) {
+        const formData = new FormData(e.target);
+
+        const data = {};
+        data['id'] = uuidv4();
+        for (let field of formData) {
+            const [key, value] = field;
+            data[key] = (value)?value:null;
+        }
+
+        // @ts-ignore
+        todolist = [...todolist, data];
+        updateTodolist();
+        e.target.reset();
+
+        addTaskOpened = false;
+    }
+
+    function removeTask() {
+        const id = this.dataset.taskId;
+        
+        const i = my.tasks.indexOf(id);
+        if(i >= 0) {
+            my.tasks = [...my.tasks.slice(0, i), ...my.tasks.slice(i + 1)];
+        }
+
+        const j = todolist.findIndex(task => task.id === id);
+        if(j >= 0) {
+            todolist = [...todolist.slice(0, j), ...todolist.slice(j + 1)];
+        }
+
+        updateMy();
+        updateTodolist();
+    }
+
+    function resetAddTask() {
+        addTaskOpened = false;
+    }
+
+    function formatTime(time, moment) {
+        if(!moment) {
+            if(time) {
+                return time;
+            } else {
+                return '&nbsp;';
+            }
+        } else {
+            const min = time.split(':')[1];
+            return `<span class="flex items-center"><img src="${(moment == 'day')?SunIcon:MoonIcon}" class="w-4 h-4 inline-block" />:${min}</span>`;
+        }
+    }
+
+    
 </script>
 
 <main>
-    <div class="container mx-auto my-6">
+    <div class="container mx-auto my-6 max-w-4xl">
 
-        <h1 class="text-2xl font-bold mb-4">Guild Wars 2 - Liste de tâches</h1>
+        <h1 class="text-3xl font-bold mb-6 flex gap-4 justify-between items-center">
+            Guild Wars 2 - Liste de tâches
+            <label for="add-task" class="btn gap-1 btn-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                </svg>                  
+                Ajouter
+            </label>
+        </h1>
 
-        <div class="flex gap-2 p-3 shadow rounded-lg mb-4 border items-center">
-            <input type="time" class="input w-full input-bordered" placeholder="Heure" />
-            <input type="text" class="input w-full input-bordered" placeholder="Point de passage" />
-            <input type="text" class="input w-full input-bordered" placeholder="Intitulé de la tâche" />
-            <select class="select select-bordered">
-                <option value="">Aucun</option>
-                <option value="day">Jour</option>
-                <option value="night">Nuit</option>
-            </select>
-            <button class="btn">Enregistrer</button>
-        </div>
+        {#if todolist.length > 0}
 
-        <table class="table w-full">
-            <thead>
-                <tr>
-                    <th>&nbsp;</th>
-                    <th>Heure</th>
-                    <th>TP</th>
-                    <th>Titre</th>
-                    <th>&nbsp;</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each todolist as task}
+            <table class="table table-compact w-full shadow-xl rounded-xl">
+                <thead>
                     <tr>
-                        <td><input type="checkbox" class="checkbox" checked={(local.tasks.indexOf(task.id) >= 0)} on:change={updateTask} /></td>
-                        <td>{(!task.moment) ? task.time : 'XX:'+task.time.split(':')[1]+' ('+task.moment+')'}</td>
-                        <td><button class="btn btn-xs">{task.wp}</button></td>
-                        <td class="font-bold">{task.name}</td>
-                        <td>
-                            <button class="btn btn-error btn-xs text-white">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                </svg>                              
-                            </button>
-                        </td>
+                        <th width="1">&nbsp;</th>
+                        <th width="1">Heure</th>
+                        <th width="1" class="text-center">TP</th>
+                        <th>Tâche</th>
+                        <th width="1">&nbsp;</th>
                     </tr>
-                {/each}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {#each todolist as task}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="checkbox checkbox-xs" checked={(my.tasks.indexOf(task.id) >= 0)} on:change={updateMyTasks} data-task-id="{task.id}" /> 
+                            </td>
+                            <td class="whitespace-nowrap">{@html formatTime(task.time, task.moment)}</td>
+                            <td class="text-center">
+                                {#if task.wp}
+                                    <button use:copy={task.wp} class="btn btn-xs btn-ghost">{task.wp}</button>
+                                {:else}
+                                    &nbsp;
+                                {/if}
+                            </td>
+                            <td class="font-bold"><label for="{task.id}">{task.name}</label></td>
+                            <td>
+                                <button class="btn btn-error btn-xs btn-square btn-outline" on:click={removeTask} data-task-id="{task.id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                        <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+        {:else}
+            <div class="alert shadow-lg">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span><strong>Aucune tâche trouvée.</strong> Pour créer ta première tâche, appuie sur le bouton "+ Nouveau".</span>
+                </div>
+            </div>
+        {/if}
     </div>
-    <!-- 
-        <ul>
-            <li>Créer un formulaire pour ajouter des tâches</li>
-            <li>Horraire (XX ou H) + TP + Nom</li>
-            <li>Case à cocher réinitialisation quoti</li>
-            <li>Tableau de données</li>
-            <li>Clipboardjs</li>
-        </ul> 
-    -->
+
+    <input type="checkbox" id="add-task" class="modal-toggle" bind:checked={addTaskOpened} />
+    <div class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Ajouter une tâche</h3>
+            <form class="" autocomplete="off" on:submit|preventDefault={addTask}>
+                <div class="flex gap-4">
+                    <div class="form-control w-full">
+                        <label class="label label-text" for="time">Horraire</label>
+                        <input type="time" class="input w-full input-bordered" id="time" name="time" />
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label label-text" for="name">Moment</label>
+                        <select class="select select-bordered" name="moment">
+                            <option value="">Aucun</option>
+                            <option value="day">Jour</option>
+                            <option value="night">Nuit</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-control w-full">
+                    <label class="label label-text" for="wp">Point de passage</label>
+                    <input type="text" class="input w-full input-bordered" id="wp" placeholder="[&BBEEAAA=]" name="wp" />
+                </div>
+                <div class="form-control w-full">
+                    <label class="label label-text" for="name">Intitulé</label>
+                    <input type="text" class="input w-full input-bordered" id="name" name="name" required />
+                </div>
+                <div class="flex gap-4 justify-between mt-4">
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    <button type="reset" class="btn btn-ghost" on:click={resetAddTask}>Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </main>
 
 <style>
